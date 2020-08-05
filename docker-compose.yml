@@ -1,0 +1,64 @@
+version: "3.7"
+services:
+  db:
+    # image: mysql:8.0
+    build: ./mysql/
+    container_name: mysql8_3sem
+    
+    environment:
+      MYSQL_ROOT_PASSWORD: 'root'
+    ports:
+      # <Port exposed> : < MySQL Port running inside container>
+      - '3306:3306'
+    expose:
+      # Opens port 3306 on the container
+      - '3306'
+      # Where our data will be persisted
+    volumes:
+      - ./data:/var/lib/mysql # for data
+      - ./scripts:/scripts
+      - ./mysql/startscript:/docker-entrypoint-initdb.d
+    networks:
+      - tomcat_network
+
+  web:
+    # image:  tomcat:9.0.37-jdk8
+    image: tomcat:9.0.37-jdk8-openjdk  # Use openjdk due to Oracles new licence policy
+    # build: ./tomcat/
+    container_name: tomcat_3sem
+
+    #OBSERVE LISTEN ON PORT 80
+    ports:
+      - "80:8080"
+    
+    volumes:
+      - ./tomcat/webapps:/usr/local/tomcat/webapps
+      - ./tomcat/setenv.sh:/usr/local/tomcat/bin/setenv.sh
+      - ./tomcat/tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+      - ./tomcat/context.xml:/usr/local/tomcat/webapps.dist/manager/META-INF/context.xml  
+
+    command: sh -c "mv /usr/local/tomcat/webapps.dist/manager /usr/local/tomcat/webapps; catalina.sh run"    
+
+    networks:
+      - tomcat_network
+
+  nginx:
+    #image: nginx:1.15-alpine
+    image : nginx
+    container_name: nginx_3sem
+    restart: unless-stopped
+    volumes:
+      - ./nginx/conf:/etc/nginx/conf.d
+      # - ./data/certbot/conf:/etc/letsencrypt
+      # - ./data/certbot/www:/var/www/certbot
+       
+      # NOT Availble from outside in this version    
+      # ports:
+      # - "80:80"
+      # - "443:443"
+    networks:
+      - tomcat_network
+
+networks:
+  tomcat_network:
+    driver: bridge
